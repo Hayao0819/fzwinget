@@ -2,29 +2,25 @@ package ui
 
 import (
 	fzf "github.com/ktr0731/go-fuzzyfinder"
-	"github.com/sheepla/fzwinget/api"
 )
 
-type finderItem interface {
+type FinderItem interface {
 	Label() string
 	Detail() string
 }
 
-func FindPackage(result api.SearchResult) ([]int, error) {
-	var items []finderItem
-	for _, p := range result {
-		items = append(items, p)
-	}
+type FinderList []FinderItem
 
+func FindPackage(list FinderList) ([]int, error) {
 	return fzf.FindMulti(
-		items,
+		list,
 		func(i int) string {
-			return items[i].Label()
+			return list[i].Label()
 		},
 
 		fzf.WithMode(fzf.ModeCaseInsensitive),
 		fzf.WithPreviewWindow(func(i, width, height int) string {
-			return items[i].Detail()
+			return list[i].Detail()
 		}),
 	)
 }

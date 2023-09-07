@@ -135,6 +135,20 @@ func initApp() *cli.App {
 	return app
 }
 
+func makeFinderList(result *api.SearchResult) *ui.FinderList {
+	exit := ui.MetaItem{
+		Name: "exit",
+		Func: func() error { return cli.Exit("", exitCodeOK.Int()) },
+	}
+
+	var list ui.FinderList
+	for _, r := range *result {
+		list = append(list, r)
+	}
+	list = append(list, exit)
+	return &list
+}
+
 func buildSearchParam(ctx *cli.Context) *api.SearchParam {
 	return api.NewSearchParam(
 		strings.Join(ctx.Args().Slice(), " "),
@@ -160,7 +174,9 @@ func runInstallCommand(ctx *cli.Context) error {
 		return cli.Exit(err, exitCodeOK.Int())
 	}
 
-	selected, err := ui.FindPackage(*result)
+	list := makeFinderList(result)
+
+	selected, err := ui.FindPackage(*makeFinderList(result))
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return cli.Exit("", exitCodeOK.Int())
@@ -170,17 +186,25 @@ func runInstallCommand(ctx *cli.Context) error {
 	}
 
 	for _, idx := range selected {
-		cmd := newWingetInstallCommand(
-			ctx.App.Writer,
-			ctx.App.ErrWriter,
-			(*result)[idx].ID,
-		)
+		switch item := (*list)[idx].(type) {
+		case api.Package:
+			{
+				cmd := newWingetInstallCommand(
+					ctx.App.Writer,
+					ctx.App.ErrWriter,
+					item.ID,
+				)
 
-		if err := cmd.Run(); err != nil {
-			return cli.Exit(err, exitCodeErrWinget.Int())
+				if err := cmd.Run(); err != nil {
+					return cli.Exit(err, exitCodeErrWinget.Int())
+				}
+			}
+		case ui.MetaItem:
+			{
+				return item.Func()
+			}
 		}
 	}
-
 	return cli.Exit("", exitCodeErrAPI.Int())
 }
 
@@ -190,7 +214,9 @@ func runShowCommand(ctx *cli.Context) error {
 		return cli.Exit(err, exitCodeOK.Int())
 	}
 
-	selected, err := ui.FindPackage(*result)
+	list := makeFinderList(result)
+
+	selected, err := ui.FindPackage(*list)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return cli.Exit("", exitCodeOK.Int())
@@ -200,14 +226,23 @@ func runShowCommand(ctx *cli.Context) error {
 	}
 
 	for _, idx := range selected {
-		cmd := newWingetShowCommand(
-			ctx.App.Writer,
-			ctx.App.ErrWriter,
-			(*result)[idx].ID,
-		)
+		switch item := (*list)[idx].(type) {
+		case api.Package:
+			{
+				cmd := newWingetShowCommand(
+					ctx.App.Writer,
+					ctx.App.ErrWriter,
+					item.ID,
+				)
 
-		if err := cmd.Run(); err != nil {
-			return cli.Exit(err, exitCodeErrWinget.Int())
+				if err := cmd.Run(); err != nil {
+					return cli.Exit(err, exitCodeErrWinget.Int())
+				}
+			}
+		case ui.MetaItem:
+			{
+				return item.Func()
+			}
 		}
 	}
 
@@ -220,7 +255,7 @@ func runOpenCommand(ctx *cli.Context) error {
 		return cli.Exit(err, exitCodeOK.Int())
 	}
 
-	selected, err := ui.FindPackage(*result)
+	selected, err := ui.FindPackage(*makeFinderList(result))
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return cli.Exit("", exitCodeOK.Int())
