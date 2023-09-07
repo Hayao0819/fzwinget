@@ -1,34 +1,30 @@
 package ui
 
 import (
-	"fmt"
-
 	fzf "github.com/ktr0731/go-fuzzyfinder"
 	"github.com/sheepla/fzwinget/api"
 )
 
+type finderItem interface {
+	Label() string
+	Detail() string
+}
+
 func FindPackage(result api.SearchResult) ([]int, error) {
+	var items []finderItem
+	for _, p := range result {
+		items = append(items, p)
+	}
+
 	return fzf.FindMulti(
-		result,
+		items,
 		func(i int) string {
-			return fmt.Sprintf("[%v] %v", result[i].ID, result[i].Name)
+			return items[i].Label()
 		},
 
 		fzf.WithMode(fzf.ModeCaseInsensitive),
 		fzf.WithPreviewWindow(func(i, width, height int) string {
-			return fmt.Sprintf(
-				"[%v]\n%v\n\n───────────────────\n\npublished by %v\n\nlicenced under the %v\n\ntags: %v\nversions: %v\n\nURL: %v\nLicense URL: %v",
-				result[i].ID,
-				result[i].Name,
-				result[i].Publisher,
-				result[i].License,
-				result[i].Tags,
-				result[i].Versions,
-				//humanize.Time(result[i].CreatedAt),
-				//humanize.Time(result[i].UpdatedAt),
-				result[i].Homepage,
-				result[i].LicenseURL,
-			)
+			return items[i].Detail()
 		}),
 	)
 }
